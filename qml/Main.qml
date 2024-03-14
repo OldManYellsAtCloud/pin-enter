@@ -4,7 +4,7 @@ import QtQuick.Controls
 Window {
     width: 640
     height: 480
-    visible: false
+    visible: true
     title: qsTr("Hello World")
     id: root
 

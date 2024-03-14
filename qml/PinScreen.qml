@@ -19,11 +19,6 @@ Item {
         onRemainingTriesChanged: {
             remainingTriesText.text = qsTr("Enter the PIN code to unlock the SIM card. %2 tries left.".arg(remainingTries))
         }
-
-        onPinRequiredChanged: {
-            if (pinRequired)
-                root.visible = true
-        }
     }
 
     Button {
