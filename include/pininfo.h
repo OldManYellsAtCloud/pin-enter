@@ -3,11 +3,12 @@
 
 #include <QObject>
 #include <QQmlEngine>
+#include <settingslib.h>
 #include <sdbus-c++/sdbus-c++.h>
 
-#define DBUS_SERVICE_NAME "sgy.pine.modem"
-#define DBUS_OBJECT_PATH "/sgy/pine/modem"
-#define DBUS_INTERFACE_NAME "sgy.pine.modem"
+#define DBUS_SERVICE_NAME "org.gspine.modem"
+#define DBUS_OBJECT_PATH "/org/gspine/modem"
+#define DBUS_INTERFACE_NAME "org.gspine.modem"
 
 class PinInfo : public QObject
 {
@@ -15,14 +16,15 @@ class PinInfo : public QObject
     QML_ELEMENT
 private:
     std::unique_ptr<sdbus::IProxy> dbusProxy;
+    SettingsLib settings;
     bool m_pinRequired;
     int m_remainingTries = -1;
-    void modemAvailable(sdbus::Signal& signal);
     Q_PROPERTY(bool pinRequired READ pinRequired NOTIFY pinRequiredChanged FINAL)
     Q_PROPERTY(int remainingTries READ remainingTries NOTIFY remainingTriesChanged FINAL)
 
     bool isPinRequired();
     int getRemainingPinTries();
+    void configureDataAccess();
 public:
     explicit PinInfo(QObject *parent = nullptr);
     Q_INVOKABLE bool enterPin(QString pin);

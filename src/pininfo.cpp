@@ -33,21 +33,6 @@ bool parsePinEnterResponse(std::string s){
     return s.find("OK") != std::string::npos && s.length() < 7;
 }
 
-void PinInfo::modemAvailable(sdbus::Signal& signal)
-{
-    bool modemPresent;
-    signal >> modemPresent;
-    if (modemPresent) {
-        m_pinRequired = isPinRequired();
-        m_remainingTries = getRemainingPinTries();
-
-        LOG("Emit pinrequiredChanged");
-        emit pinRequiredChanged();
-        LOG("Emit remainingTries changed");
-        emit remainingTriesChanged();
-    }
-}
-
 bool PinInfo::isPinRequired()
 {
     std::string s;
@@ -67,14 +52,38 @@ int PinInfo::getRemainingPinTries()
     return parseRemainingPinResponse(s);
 }
 
+void PinInfo::configureDataAccess()
+{
+    std::string apnSettings = settings.getValue("sim", "apn");
+    auto method = dbusProxy->createMethodCall(DBUS_INTERFACE_NAME, "enable_low_power");
+    method << "0";
+    dbusProxy->callMethod(method);
+
+    method = dbusProxy->createMethodCall(DBUS_INTERFACE_NAME, "enable_packet_service");
+    method << "0";
+    dbusProxy->callMethod(method);
+
+    method = dbusProxy->createMethodCall(DBUS_INTERFACE_NAME, "set_ue_functionality");
+    method << "4";
+    dbusProxy->callMethod(method);
+
+    method = dbusProxy->createMethodCall(DBUS_INTERFACE_NAME, "set_pdp_cont");
+    method << apnSettings;
+    dbusProxy->callMethod(method);
+
+    method = dbusProxy->createMethodCall(DBUS_INTERFACE_NAME, "set_ue_functionality");
+    method << "1";
+    dbusProxy->callMethod(method);
+
+    method = dbusProxy->createMethodCall(DBUS_INTERFACE_NAME, "enable_packet_service");
+    method << "1";
+    dbusProxy->callMethod(method);
+}
+
 PinInfo::PinInfo(QObject *parent)
-    : QObject{parent}, m_pinRequired{false}
+    : QObject{parent}, m_pinRequired{false}, settings{"/etc"}
 {
     dbusProxy = sdbus::createProxy(DBUS_SERVICE_NAME, DBUS_OBJECT_PATH);
-
-    auto modemAvailableHandler = [&](sdbus::Signal& signal){modemAvailable(signal);};
-    dbusProxy->registerSignalHandler(DBUS_INTERFACE_NAME, "present", modemAvailableHandler);
-    dbusProxy->finishRegistration();
 }
 
 bool PinInfo::enterPin(QString pin)
@@ -88,6 +97,7 @@ bool PinInfo::enterPin(QString pin)
     if (ret) {
         LOG("PIN accepted");
         m_pinRequired = false;
+        configureDataAccess();
         emit pinRequiredChanged();
     }
     return ret;

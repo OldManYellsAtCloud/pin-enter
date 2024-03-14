@@ -9,6 +9,7 @@ set(CMAKE_CXX_STANDARD 20)
 find_package(Qt6 6.2 REQUIRED COMPONENTS Quick)
 find_package(sdbus-c++ REQUIRED)
 find_package(LogLibrary)
+find_package(SettingsLib)
 
 set(SOURCES src/pininfo.cpp)
 
@@ -17,6 +18,7 @@ set(HEADERS include/pininfo.h)
 qt_add_executable(appmodem-network
     src/main.cpp
     ${SOURCES} ${HEADERS}
+    pin-enter.cfg
 )
 
 qt_add_qml_module(appmodem-network
@@ -32,7 +34,7 @@ target_include_directories(appmodem-network
 )
 
 target_link_libraries(appmodem-network
-    PRIVATE Qt6::Quick SDBusCpp::sdbus-c++ LogLibrary
+    PRIVATE Qt6::Quick SDBusCpp::sdbus-c++ LogLibrary SettingsLib
 )
 
 include(GNUInstallDirs)
@@ -40,4 +42,8 @@ install(TARGETS appmodem-network
     BUNDLE DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+install(FILES pin-enter.cfg
+    DESTINATION /etc/
 )
