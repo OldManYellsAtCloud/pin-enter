@@ -35,48 +35,53 @@ bool parsePinEnterResponse(std::string s){
 
 bool PinInfo::isPinRequired()
 {
-    std::string s;
-    auto method = dbusProxy->createMethodCall(DBUS_INTERFACE_NAME, "pin_query");
+    std::string responseSuccess;
+    std::string simState;
+    auto method = dbusProxy->createMethodCall("org.gspine.modem.sim", "get_pin_state");
     auto response = dbusProxy->callMethod(method);
-    response >> s;
-    return parsePinRequiredResponse(s);
+    response >> responseSuccess;
+    if (responseSuccess != "OK")
+        return false;
+
+    response >> simState;
+    return simState == "SIM PIN";
 }
 
 int PinInfo::getRemainingPinTries()
 {
-    std::string s;
-    auto method = dbusProxy->createMethodCall(DBUS_INTERFACE_NAME, "set_pin_remainder");
+    int res;
+    auto method = dbusProxy->createMethodCall("org.gspine.modem.sim", "get_pin_counter");
     method << "\"SC\"";
-    auto response = dbusProxy->callMethod(method);
-    response >> s;
-    return parseRemainingPinResponse(s);
+    auto dbusResponse = dbusProxy->callMethod(method);
+    dbusResponse >> res;
+    return res;
 }
 
 void PinInfo::configureDataAccess()
 {
     std::string apnSettings = settings.getValue("sim", "apn");
-    auto method = dbusProxy->createMethodCall(DBUS_INTERFACE_NAME, "enable_low_power");
-    method << "0";
+    auto method = dbusProxy->createMethodCall("org.gspine.modem.hw", "set_low_power");
+
+    method << false;
+    dbusProxy->callMethod(method);
+    method = dbusProxy->createMethodCall("org.gspine.modem.pd", "enable_pd");
+    method << false;
     dbusProxy->callMethod(method);
 
-    method = dbusProxy->createMethodCall(DBUS_INTERFACE_NAME, "enable_packet_service");
-    method << "0";
+    method = dbusProxy->createMethodCall("org.gspine.modem.general", "set_functionality_level");
+    method << "Disable";
     dbusProxy->callMethod(method);
 
-    method = dbusProxy->createMethodCall(DBUS_INTERFACE_NAME, "set_ue_functionality");
-    method << "4";
-    dbusProxy->callMethod(method);
-
-    method = dbusProxy->createMethodCall(DBUS_INTERFACE_NAME, "set_pdp_cont");
+    method = dbusProxy->createMethodCall("org.gspine.modem.pd", "set_apn");
     method << apnSettings;
     dbusProxy->callMethod(method);
 
-    method = dbusProxy->createMethodCall(DBUS_INTERFACE_NAME, "set_ue_functionality");
-    method << "1";
+    method = dbusProxy->createMethodCall("org.gspine.modem.general", "set_functionality_level");
+    method << "Full";
     dbusProxy->callMethod(method);
 
-    method = dbusProxy->createMethodCall(DBUS_INTERFACE_NAME, "enable_packet_service");
-    method << "1";
+    method = dbusProxy->createMethodCall("org.gspine.modem.pd", "enable_pd");
+    method << true;
     dbusProxy->callMethod(method);
 }
 
@@ -89,18 +94,16 @@ PinInfo::PinInfo(QObject *parent)
 bool PinInfo::enterPin(QString pin)
 {
     std::string s;
-    auto method = dbusProxy->createMethodCall(DBUS_INTERFACE_NAME, "pin_enter");
-    method << quoteString(pin.toStdString());
+    auto method = dbusProxy->createMethodCall("org.gspine.modem.sim", "pin_enter");
+    method << pin.toStdString();
     auto response = dbusProxy->callMethod(method);
     response >> s;
-    bool ret = parsePinEnterResponse(s);
-    if (ret) {
-        LOG("PIN accepted");
-        m_pinRequired = false;
+
+    if (s == "OK"){
         configureDataAccess();
-        emit pinRequiredChanged();
+        return true;
     }
-    return ret;
+    return false;
 }
 
 bool PinInfo::pinRequired()
