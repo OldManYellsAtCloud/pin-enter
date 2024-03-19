@@ -16,6 +16,8 @@ class PinInfo : public QObject
     QML_ELEMENT
 private:
     std::unique_ptr<sdbus::IProxy> dbusProxy;
+    std::unique_ptr<sdbus::IObject> dbusObject;
+    std::unique_ptr<sdbus::IConnection> dbusConnection;
     SettingsLib settings;
     bool m_pinRequired;
     int m_remainingTries = -1;
@@ -25,6 +27,7 @@ private:
     bool isPinRequired();
     int getRemainingPinTries();
     void configureDataAccess();
+    void sendUnlockedSignal();
 public:
     explicit PinInfo(QObject *parent = nullptr);
     Q_INVOKABLE bool enterPin(QString pin);

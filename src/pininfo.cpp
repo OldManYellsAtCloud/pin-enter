@@ -1,10 +1,21 @@
 #include "pininfo.h"
 #include <loglibrary.h>
 
+
 std::string quoteString(std::string s){
     if (s[0] == '"' && s[s.length() - 1] == '"')
         return s;
     return "\"" + s + "\"";
+}
+
+PinInfo::PinInfo(QObject *parent)
+    : QObject{parent}, m_pinRequired{false}, settings{"/etc"}
+{
+    dbusConnection = sdbus::createSystemBusConnection("org.gspine.sim");
+    dbusObject = sdbus::createObject(*dbusConnection, "/org/gspine/sim");
+    dbusProxy = sdbus::createProxy(*dbusConnection, DBUS_SERVICE_NAME, DBUS_OBJECT_PATH);
+    dbusObject->registerSignal("org.gspine.sim", "unlocked", "");
+    dbusObject->finishRegistration();
 }
 
 bool parsePinRequiredResponse(std::string s){
@@ -83,27 +94,27 @@ void PinInfo::configureDataAccess()
     dbusProxy->callMethod(method);
 }
 
-PinInfo::PinInfo(QObject *parent)
-    : QObject{parent}, m_pinRequired{false}, settings{"/etc"}
+void PinInfo::sendUnlockedSignal()
 {
-    dbusProxy = sdbus::createProxy(DBUS_SERVICE_NAME, DBUS_OBJECT_PATH);
+    dbusObject->createSignal("org.gspine.sim", "unlocked").send();
 }
 
 bool PinInfo::enterPin(QString pin)
 {
-    std::string s;
-    bool success;
+    std::string result;
+    std::string modemOutput;
     auto method = dbusProxy->createMethodCall("org.gspine.modem.sim", "pin_enter");
     method << pin.toStdString();
     auto response = dbusProxy->callMethod(method);
-    response >> s;
-    response >> success;
-    LOG("PIN enter result: {}", s);
+    response >> result;
+    response >> modemOutput;
+    LOG("PIN enter result: {}", result);
 
-    if (success){
+    if (result == "OK"){
         configureDataAccess();
+        sendUnlockedSignal();
     }
-    return success;
+    return result == "OK";
 }
 
 bool PinInfo::pinRequired()
