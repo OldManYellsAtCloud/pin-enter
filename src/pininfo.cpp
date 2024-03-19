@@ -26,13 +26,6 @@ int parseRemainingPinResponse(std::string s){
     return ret;
 }
 
-bool parsePinEnterResponse(std::string s){
-    // Examining the length of the response is not too scientific, but
-    // upon success the whole response is just an "OK" with some newline
-    // characters. I think it should do the trick.
-    return s.find("OK") != std::string::npos && s.length() < 7;
-}
-
 bool PinInfo::isPinRequired()
 {
     std::string responseSuccess;
@@ -50,10 +43,15 @@ bool PinInfo::isPinRequired()
 int PinInfo::getRemainingPinTries()
 {
     int res;
+    std::string requestStatus;
     auto method = dbusProxy->createMethodCall("org.gspine.modem.sim", "get_pin_counter");
     method << "\"SC\"";
     auto dbusResponse = dbusProxy->callMethod(method);
-    dbusResponse >> res;
+    dbusResponse >> requestStatus;
+    if (requestStatus == "OK")
+        dbusResponse >> res;
+    else
+        res = -1;
     return res;
 }
 
@@ -94,16 +92,18 @@ PinInfo::PinInfo(QObject *parent)
 bool PinInfo::enterPin(QString pin)
 {
     std::string s;
+    bool success;
     auto method = dbusProxy->createMethodCall("org.gspine.modem.sim", "pin_enter");
     method << pin.toStdString();
     auto response = dbusProxy->callMethod(method);
     response >> s;
+    response >> success;
+    LOG("PIN enter result: {}", s);
 
-    if (s == "OK"){
+    if (success){
         configureDataAccess();
-        return true;
     }
-    return false;
+    return success;
 }
 
 bool PinInfo::pinRequired()
