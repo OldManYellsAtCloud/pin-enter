@@ -27,6 +27,7 @@ Item {
         onClicked: {
             Qt.exit(0)
         }
+        focusPolicy: Qt.NoFocus
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
@@ -64,6 +65,7 @@ Item {
         font.bold: true
         font.pixelSize: 20
         echoMode: showPasswordImg.opacity === 0.5 ? TextInput.Password : TextInput.Normal
+        activeFocusOnPress: false
         Image {
             id: showPasswordImg
             source: "res/show-password.png"
@@ -97,6 +99,7 @@ Item {
                 text: getButtonText(index)
                 font.bold: true
                 font.pixelSize: 20
+                focusPolicy: Qt.NoFocus
                 onClicked: {
                     if (text === "<") {
                         pinInput.text = deleteLastChar(pinInput.text)
