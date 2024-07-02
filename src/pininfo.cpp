@@ -11,11 +11,12 @@ std::string quoteString(std::string s){
 PinInfo::PinInfo(QObject *parent)
     : QObject{parent}, m_pinRequired{false}, settings{"/etc"}
 {
-    dbusConnection = sdbus::createSystemBusConnection("org.gspine.sim");
-    dbusObject = sdbus::createObject(*dbusConnection, "/org/gspine/sim");
-    dbusProxy = sdbus::createProxy(*dbusConnection, DBUS_SERVICE_NAME, DBUS_OBJECT_PATH);
-    dbusObject->registerSignal("org.gspine.sim", "unlocked", "");
-    dbusObject->finishRegistration();
+    dbusConnection = sdbus::createBusConnection(sdbus::ServiceName{"org.gspine.sim"});
+
+    dbusObject = sdbus::createObject(*dbusConnection, sdbus::ObjectPath{"/org/gspine/sim"});
+
+    dbusProxy = sdbus::createProxy(*dbusConnection, sdbus::ServiceName{DBUS_SERVICE_NAME}, sdbus::ObjectPath{DBUS_OBJECT_PATH});
+    dbusObject->addVTable(sdbus::SignalVTableItem{sdbus::MethodName{"unlocked"}, {}, {}}).forInterface(sdbus::InterfaceName{DBUS_INTERFACE_NAME});
 }
 
 bool parsePinRequiredResponse(std::string s){
@@ -41,7 +42,7 @@ bool PinInfo::isPinRequired()
 {
     std::string responseSuccess;
     std::string simState;
-    auto method = dbusProxy->createMethodCall("org.gspine.modem.sim", "get_pin_state");
+    auto method = dbusProxy->createMethodCall(sdbus::InterfaceName{"org.gspine.modem.sim"}, sdbus::MethodName{"get_pin_state"});
     auto response = dbusProxy->callMethod(method);
     response >> responseSuccess;
     if (responseSuccess != "OK")
@@ -55,7 +56,7 @@ int PinInfo::getRemainingPinTries()
 {
     int res;
     std::string requestStatus;
-    auto method = dbusProxy->createMethodCall("org.gspine.modem.sim", "get_pin_counter");
+    auto method = dbusProxy->createMethodCall(sdbus::InterfaceName{"org.gspine.modem.sim"}, sdbus::MethodName{"get_pin_counter"});
     method << "\"SC\"";
     auto dbusResponse = dbusProxy->callMethod(method);
     dbusResponse >> requestStatus;
@@ -69,41 +70,41 @@ int PinInfo::getRemainingPinTries()
 void PinInfo::configureDataAccess()
 {
     std::string apnSettings = settings.getValue("sim", "apn");
-    auto method = dbusProxy->createMethodCall("org.gspine.modem.hw", "set_low_power");
+    auto method = dbusProxy->createMethodCall(sdbus::InterfaceName{"org.gspine.modem.hw"}, sdbus::MethodName{"set_low_power"});
 
     method << false;
     dbusProxy->callMethod(method);
-    method = dbusProxy->createMethodCall("org.gspine.modem.pd", "enable_pd");
+    method = dbusProxy->createMethodCall(sdbus::InterfaceName{"org.gspine.modem.pd"}, sdbus::MethodName{"enable_pd"});
     method << false;
     dbusProxy->callMethod(method);
 
-    method = dbusProxy->createMethodCall("org.gspine.modem.general", "set_functionality_level");
+    method = dbusProxy->createMethodCall(sdbus::InterfaceName{"org.gspine.modem.general"}, sdbus::MethodName{"set_functionality_level"});
     method << "Disable";
     dbusProxy->callMethod(method);
 
-    method = dbusProxy->createMethodCall("org.gspine.modem.pd", "set_apn");
+    method = dbusProxy->createMethodCall(sdbus::InterfaceName{"org.gspine.modem.pd"}, sdbus::MethodName{"set_apn"});
     method << apnSettings;
     dbusProxy->callMethod(method);
 
-    method = dbusProxy->createMethodCall("org.gspine.modem.general", "set_functionality_level");
+    method = dbusProxy->createMethodCall(sdbus::InterfaceName{"org.gspine.modem.general"}, sdbus::MethodName{"set_functionality_level"});
     method << "Full";
     dbusProxy->callMethod(method);
 
-    method = dbusProxy->createMethodCall("org.gspine.modem.pd", "enable_pd");
+    method = dbusProxy->createMethodCall(sdbus::InterfaceName{"org.gspine.modem.pd"}, sdbus::MethodName{"enable_pd"});
     method << true;
     dbusProxy->callMethod(method);
 }
 
 void PinInfo::sendUnlockedSignal()
 {
-    dbusObject->createSignal("org.gspine.sim", "unlocked").send();
+    dbusObject->createSignal(sdbus::InterfaceName{"org.gspine.sim"}, sdbus::SignalName{"unlocked"}).send();
 }
 
 bool PinInfo::enterPin(QString pin)
 {
     std::string result;
     std::string modemOutput;
-    auto method = dbusProxy->createMethodCall("org.gspine.modem.sim", "pin_enter");
+    auto method = dbusProxy->createMethodCall(sdbus::InterfaceName{"org.gspine.modem.sim"}, sdbus::MethodName{"pin_enter"});
     method << pin.toStdString();
     auto response = dbusProxy->callMethod(method);
     response >> result;
