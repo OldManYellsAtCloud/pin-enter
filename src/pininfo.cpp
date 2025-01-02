@@ -1,4 +1,5 @@
 #include "pininfo.h"
+#include "nlohmann/json.hpp"
 #include <loglibrary.h>
 
 
@@ -19,49 +20,36 @@ PinInfo::PinInfo(QObject *parent)
     dbusObject->addVTable(sdbus::SignalVTableItem{sdbus::MethodName{"unlocked"}, {}, {}}).forInterface(sdbus::InterfaceName{DBUS_INTERFACE_NAME});
 }
 
-bool parsePinRequiredResponse(std::string s){
-    return s.find("CPIN: SIM PIN") != std::string::npos;
-}
-
-int parseRemainingPinResponse(std::string s){
-    size_t start = s.find(",");
-    size_t end = s.find(",", start + 1);
-    std::string parsedNumber = s.substr(start + 1, end - start - 1);
-    int ret;
-    try {
-        ret = std::stoi(parsedNumber);
-    } catch (std::exception e) {
-        ERROR("Could not parse {}! Error: {}", s, e.what());
-        exit(1);
-    }
-
-    return ret;
-}
-
 bool PinInfo::isPinRequired()
 {
-    std::string responseSuccess;
-    std::string simState;
+    std::string modemResponseString;
+    nlohmann::json jsonResponse;
     auto method = dbusProxy->createMethodCall(sdbus::InterfaceName{"org.gspine.modem.sim"}, sdbus::MethodName{"get_pin_state"});
     auto response = dbusProxy->callMethod(method);
-    response >> responseSuccess;
-    if (responseSuccess != "OK")
+    response >> modemResponseString;
+    jsonResponse = nlohmann::json::parse(modemResponseString);
+    if (jsonResponse.contains("ERROR"))
         return false;
 
-    response >> simState;
-    return simState == "SIM PIN";
+    return jsonResponse["state"] == "SIM PIN";
 }
 
 int PinInfo::getRemainingPinTries()
 {
     int res;
-    std::string requestStatus;
+    nlohmann::json jsonResult;
+    std::string modemResponseString;
     auto method = dbusProxy->createMethodCall(sdbus::InterfaceName{"org.gspine.modem.sim"}, sdbus::MethodName{"get_pin_counter"});
     method << "\"SC\"";
     auto dbusResponse = dbusProxy->callMethod(method);
-    dbusResponse >> requestStatus;
-    if (requestStatus == "OK")
-        dbusResponse >> res;
+    dbusResponse >> modemResponseString;
+    jsonResult = nlohmann::json::parse(modemResponseString);
+
+    if (jsonResult.contains("pin_counter")){
+        std::string tmp;
+        jsonResult["pin_counter"].get_to(tmp);
+        res = std::stoi(tmp);
+    }
     else
         res = -1;
     return res;
@@ -102,20 +90,20 @@ void PinInfo::sendUnlockedSignal()
 
 bool PinInfo::enterPin(QString pin)
 {
-    std::string result;
-    std::string modemOutput;
+    std::string modemResponseString;
+    nlohmann::json jsonResponse;
     auto method = dbusProxy->createMethodCall(sdbus::InterfaceName{"org.gspine.modem.sim"}, sdbus::MethodName{"pin_enter"});
     method << pin.toStdString();
     auto response = dbusProxy->callMethod(method);
-    response >> result;
-    response >> modemOutput;
-    LOG("PIN enter result: {}", result);
+    response >> modemResponseString;
+    jsonResponse = nlohmann::json::parse(modemResponseString);
 
-    if (result == "OK"){
+    if (jsonResponse.contains("success")){
         configureDataAccess();
         sendUnlockedSignal();
+        return true;
     }
-    return result == "OK";
+    return false;
 }
 
 bool PinInfo::pinRequired()

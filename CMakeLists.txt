@@ -10,6 +10,7 @@ find_package(Qt6 6.2 REQUIRED COMPONENTS Quick)
 find_package(sdbus-c++ REQUIRED)
 find_package(LogLibrary)
 find_package(SettingsLib)
+find_package(nlohmann_json REQUIRED)
 
 set(SOURCES src/pininfo.cpp)
 
