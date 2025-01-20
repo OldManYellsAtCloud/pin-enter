@@ -1,7 +1,5 @@
 #include "pininfo.h"
 #include "nlohmann/json.hpp"
-#include <loglibrary.h>
-
 
 std::string quoteString(std::string s){
     if (s[0] == '"' && s[s.length() - 1] == '"')

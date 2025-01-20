@@ -8,7 +8,6 @@ set(CMAKE_CXX_STANDARD 20)
 
 find_package(Qt6 6.2 REQUIRED COMPONENTS Quick)
 find_package(sdbus-c++ REQUIRED)
-find_package(LogLibrary)
 find_package(SettingsLib)
 find_package(nlohmann_json REQUIRED)
 
@@ -35,7 +34,7 @@ target_include_directories(appmodem-network
 )
 
 target_link_libraries(appmodem-network
-    PRIVATE Qt6::Quick SDBusCpp::sdbus-c++ LogLibrary SettingsLib
+    PRIVATE Qt6::Quick SDBusCpp::sdbus-c++ SettingsLib
 )
 
 include(GNUInstallDirs)
